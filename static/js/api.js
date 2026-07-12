@@ -77,10 +77,12 @@ const api = {
         const r = await fetch(url);
         return r.json();
     },
-    chat(projectId, message, chapterId, callbacks) {
+    chat(projectId, message, chapterId, callbacks, contextWindow = null) {
+        const body = { message, chapter_id: chapterId };
+        if (contextWindow) body.context_window = contextWindow;
         return streamSSE(
             `/api/projects/${projectId}/chat`,
-            { message, chapter_id: chapterId },
+            body,
             callbacks
         );
     },

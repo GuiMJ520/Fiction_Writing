@@ -30,10 +30,12 @@ class ChatService:
         user_message: str,
         chapter_id: int | None = None,
         params: GenerateParams | None = None,
+        context_window: int | None = None,
     ) -> AsyncGenerator[str, None]:
         """流式生成回复
 
         流程：存用户消息 → 压缩检查 → 获取最近消息 → 构建上下文 → 流式生成 → 存AI回复
+        context_window: 覆盖默认滑动窗口大小（消息条数）
         """
         # 1. 存用户消息
         await self.db.execute(
@@ -46,7 +48,7 @@ class ChatService:
         await self.context_manager.maybe_compress(project_id, chapter_id)
 
         # 3. 获取最近消息（滑动窗口）
-        recent = await self._get_recent_messages(project_id, chapter_id)
+        recent = await self._get_recent_messages(project_id, chapter_id, context_window)
 
         # 4. 构建完整上下文
         context = await self.context_manager.build_context(
@@ -72,10 +74,10 @@ class ChatService:
         )
 
     async def _get_recent_messages(
-        self, project_id: int, chapter_id: int | None
+        self, project_id: int, chapter_id: int | None, context_window: int | None = None
     ) -> list[ChatMessage]:
         """获取最近 N 条消息（滑动窗口），按时间正序返回"""
-        limit = self.context_config.window_size
+        limit = context_window if context_window else self.context_config.window_size
         if chapter_id:
             rows = await self.db.fetch_all(
                 """SELECT role, content FROM messages

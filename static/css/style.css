@@ -386,6 +386,56 @@ body {
     width: 100%;
 }
 
+/* 上下文滑块 */
+.context-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+.slider-label {
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+.slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--color-border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+.slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+.slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    cursor: pointer;
+    border: none;
+}
+.slider-value {
+    color: var(--color-primary);
+    font-weight: 500;
+    min-width: 40px;
+    text-align: right;
+}
+
 .message-input {
     width: 100%;
     padding: 10px 12px;

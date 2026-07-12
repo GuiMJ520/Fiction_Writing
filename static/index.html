@@ -107,6 +107,11 @@
 
             <!-- 输入区 -->
             <div class="input-area" x-show="currentProject">
+                <div class="context-slider">
+                    <label class="slider-label">上下文深度</label>
+                    <input type="range" min="5" max="50" step="5" x-model.number="contextWindow" class="slider">
+                    <span class="slider-value" x-text="contextWindow + ' 条'"></span>
+                </div>
                 <textarea
                     class="message-input"
                     x-model="inputMessage"

@@ -12,6 +12,7 @@ function novelApp() {
         abortController: null,
         llmOnline: false,
         error: '',
+        contextWindow: 20,  // 滑动窗口：最近 N 条消息作为上下文
 
         // 设定面板
         activePanel: 'characters',  // 'characters' | 'worldviews'
@@ -142,7 +143,7 @@ function novelApp() {
                     if (!aiMsg.content) aiMsg.content = '[生成失败: ' + err + ']';
                 },
                 signal: this.abortController.signal,
-            });
+            }, this.contextWindow);
         },
 
         stopGeneration() {

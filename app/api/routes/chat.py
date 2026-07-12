@@ -56,7 +56,8 @@ async def chat(
     async def event_stream():
         try:
             async for chunk in svc.generate(
-                project_id, body.message, body.chapter_id, params
+                project_id, body.message, body.chapter_id, params,
+                context_window=body.context_window,
             ):
                 yield _sse({"content": chunk})
             yield _sse({"done": True})

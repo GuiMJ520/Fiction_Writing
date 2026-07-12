@@ -161,3 +161,4 @@ class ChatRequest(BaseModel):
     chapter_id: int | None = None
     temperature: float | None = None
     max_tokens: int | None = None
+    context_window: int | None = None  # 覆盖默认滑动窗口大小

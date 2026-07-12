@@ -23,9 +23,23 @@
                 <span class="dot"></span>
                 <span x-text="llmOnline ? 'LLM 在线' : 'LLM 离线'"></span>
             </span>
+            <button class="theme-toggle" @click="toggleTheme()" :title="darkMode ? '切换到浅色模式' : '切换到深色模式'">
+                <span x-text="darkMode ? '☀' : '☾'"></span>
+            </button>
             <button class="btn btn-sm" @click="showNewProject = true">+ 新项目</button>
         </div>
     </header>
+
+    <!-- Toast 通知容器 -->
+    <div class="toast-container">
+        <template x-for="t in toasts" :key="t.id">
+            <div class="toast" :class="'toast-' + t.type">
+                <span class="toast-icon" x-text="t.icon"></span>
+                <span class="toast-message" x-text="t.message"></span>
+                <button class="toast-close" @click="removeToast(t.id)">×</button>
+            </div>
+        </template>
+    </div>
 
     <!-- 三栏布局 -->
     <main class="layout">
@@ -96,10 +110,7 @@
             </div>
 
             <!-- 对话模式 -->
-            <div class="editor-content chat-area" x-show="!currentChapter || editorMode === 'chat'">
-                <!-- 错误提示 -->
-                <div class="error-bar" x-show="error" x-text="error"></div>
-
+            <div class="editor-content chat-area" x-show="!currentChapter || editorMode === 'chat'" x-ref="chatArea">
                 <!-- 欢迎页 -->
                 <template x-if="messages.length === 0 && currentProject">
                     <div class="welcome">
@@ -110,7 +121,7 @@
                 </template>
 
                 <!-- 消息列表 -->
-                <div class="message-list">
+                <div class="message-list" x-ref="messageList">
                     <template x-for="(msg, idx) in messages" :key="idx">
                         <div class="message" :class="msg.role">
                             <div class="message-avatar" x-text="msg.role === 'user' ? '我' : 'AI'"></div>

@@ -153,6 +153,31 @@ function novelApp() {
             }
         },
 
+        async deleteProject() {
+            if (!this.currentProject) return;
+            const name = this.currentProject.name;
+            if (!confirm(`确定删除项目「${name}」？\n该项目下的所有章节、角色、世界观和对话将被永久删除。`)) return;
+            try {
+                await api.deleteProject(this.currentProject.id);
+                this.projects = this.projects.filter(p => p.id !== this.currentProject.id);
+                if (this.projects.length > 0) {
+                    await this.selectProject(this.projects[0]);
+                } else {
+                    this.currentProject = null;
+                    this.selectedProjectId = null;
+                    this.currentChapter = null;
+                    this.chapters = [];
+                    this.messages = [];
+                    this.characters = [];
+                    this.worldviews = [];
+                    this.contextInfo = { message_count: 0, compress_threshold: 30, has_summary: false };
+                }
+                this.showToast(`项目「${name}」已删除`, 'info');
+            } catch (e) {
+                this.showToast('删除项目失败: ' + e, 'error');
+            }
+        },
+
         // ===== 章节 =====
         async loadChapters() {
             if (!this.currentProject) return;

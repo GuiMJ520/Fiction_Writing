@@ -17,6 +17,7 @@
                     <option :value="p.id" x-text="p.name"></option>
                 </template>
             </select>
+            <button class="btn btn-sm btn-danger" x-show="currentProject" @click="deleteProject()" title="删除当前项目">×</button>
         </div>
         <div class="topbar-right">
             <span class="status-badge" :class="llmOnline ? 'online' : 'offline'">

@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# 运行时数据（数据库、导出文件）
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# 本地配置（含本地路径，不提交）
+config.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Trae 计划文件
+.trae/

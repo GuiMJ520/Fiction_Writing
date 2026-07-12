@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI小说写作</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 顶栏 -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <h1 class="app-title">AI小说写作</h1>
+        </div>
+        <div class="topbar-right">
+            <span class="status-badge" id="llm-status">检查中...</span>
+        </div>
+    </header>
+
+    <!-- 三栏布局 -->
+    <main class="layout">
+        <!-- 左侧：章节树 -->
+        <aside class="sidebar sidebar-left">
+            <div class="sidebar-header">
+                <h2>章节</h2>
+            </div>
+            <div class="sidebar-content" id="chapter-list">
+                <div class="empty-state">
+                    <p>暂无章节</p>
+                    <p class="hint">服务已启动，等待功能开发</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 中间：编辑/对话区 -->
+        <section class="editor-area">
+            <div class="editor-header">
+                <h2 id="current-title">欢迎使用</h2>
+            </div>
+            <div class="editor-content">
+                <div class="welcome">
+                    <h3>AI小说写作</h3>
+                    <p>基于本地大语言模型的小说创作工具</p>
+                    <div class="check-list">
+                        <div class="check-item" id="check-server">✓ 服务已启动</div>
+                        <div class="check-item" id="check-db">检查数据库...</div>
+                        <div class="check-item" id="check-llm">检查 LLM 连接...</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 右侧：角色/世界观面板 -->
+        <aside class="sidebar sidebar-right">
+            <div class="sidebar-header">
+                <h2>设定</h2>
+            </div>
+            <div class="sidebar-content">
+                <div class="empty-state">
+                    <p>暂无设定</p>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        // 启动自检
+        async function selfCheck() {
+            // 检查服务
+            document.getElementById('check-server').className = 'check-item ok';
+
+            // 检查数据库（通过 health 端点间接验证）
+            try {
+                const resp = await fetch('/api/health');
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    document.getElementById('check-db').textContent = '✓ 数据库已连接';
+                    document.getElementById('check-db').className = 'check-item ok';
+                }
+            } catch (e) {
+                document.getElementById('check-db').textContent = '✗ 数据库连接失败';
+                document.getElementById('check-db').className = 'check-item fail';
+            }
+
+            // LLM 状态（后续里程碑实现）
+            document.getElementById('check-llm').textContent = '○ LLM 检查待实现';
+            document.getElementById('llm-status').textContent = '未配置';
+        }
+        selfCheck();
+    </script>
+</body>
+</html>

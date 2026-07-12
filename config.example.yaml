@@ -1,0 +1,51 @@
+# ============================================
+# AI小说写作 - 配置文件模板
+# 使用方法：复制此文件为 config.yaml，修改为你的配置
+# cp config.example.yaml config.yaml
+# ============================================
+
+# LLM 大语言模型配置
+llm:
+  # API 类型：
+  #   openai_compat  - 调用 /v1/chat/completions（OpenAI 兼容格式，推荐）
+  #   llama_native   - 调用 /completion（llama.cpp 原生，支持 grammar 约束）
+  api_type: openai_compat
+
+  # llama-server 地址（默认端口 8080）
+  base_url: http://127.0.0.1:8080
+
+  # 模型名称（openai_compat 模式需要，llama_native 可留空）
+  model: llama-3-8b-instruct
+
+  # API 密钥（llama-server 默认不需要，留空即可）
+  api_key: ""
+
+  # 生成参数
+  generation:
+    temperature: 0.8        # 创造性：0-2，越高越随机
+    max_tokens: 2048        # 最大生成 token 数，-1 为不限制
+    top_p: 0.95             # 核采样
+    top_k: 40               # Top-K 采样
+    repeat_penalty: 1.1     # 重复惩罚
+    seed: -1                # 随机种子，-1 为随机
+
+# 数据库配置
+database:
+  path: data/novels.db
+
+# 上下文记忆管理
+context:
+  window_size: 20           # 滑动窗口：保留最近 N 条消息
+  compress_threshold: 30    # 消息数超过此值时触发压缩
+  compress_batch: 10        # 每次压缩 N 条旧消息
+  max_context_tokens: 4096  # 上下文最大 token 数（估算）
+
+# Web 服务器配置
+server:
+  host: 127.0.0.1
+  port: 8000
+  reload: true              # 开发模式热重载
+
+# 导出配置
+export:
+  output_dir: data/exports

@@ -64,18 +64,26 @@
         <section class="editor-area">
             <div class="editor-header">
                 <template x-if="currentChapter">
-                    <div>
-                        <span class="back-link" @click="backToProjectChat()">← 返回项目对话</span>
+                    <div class="chapter-header">
+                        <span class="back-link" @click="backToProjectChat()">← 返回</span>
                         <h2 x-text="currentChapter.title"></h2>
+                        <div class="tab-switcher">
+                            <button class="tab" :class="{'active': editorMode === 'chat'}" @click="editorMode = 'chat'">对话</button>
+                            <button class="tab" :class="{'active': editorMode === 'edit'}" @click="switchToEdit()">正文</button>
+                        </div>
+                        <button class="btn btn-sm" @click="exportChapter()" x-show="editorMode === 'edit'">导出</button>
                     </div>
                 </template>
                 <template x-if="!currentChapter && currentProject">
-                    <h2 x-text="'项目对话：' + currentProject.name"></h2>
+                    <div class="chapter-header">
+                        <h2 x-text="'项目对话：' + currentProject.name"></h2>
+                        <button class="btn btn-sm" @click="exportProject()">导出全本</button>
+                    </div>
                 </template>
                 <template x-if="!currentProject">
                     <h2>欢迎使用 AI小说写作</h2>
                 </template>
-                <div class="header-actions" x-show="currentProject">
+                <div class="header-actions" x-show="currentProject && (!currentChapter || editorMode === 'chat')">
                     <span class="context-info" :class="{'near': contextInfo.near_threshold}">
                         <span x-text="contextInfo.message_count + '/' + contextInfo.compress_threshold"></span>
                         <span class="summary-badge" x-show="contextInfo.has_summary" title="已有摘要">摘要</span>
@@ -87,7 +95,8 @@
                 </div>
             </div>
 
-            <div class="editor-content chat-area">
+            <!-- 对话模式 -->
+            <div class="editor-content chat-area" x-show="!currentChapter || editorMode === 'chat'">
                 <!-- 错误提示 -->
                 <div class="error-bar" x-show="error" x-text="error"></div>
 
@@ -114,8 +123,23 @@
                 </div>
             </div>
 
-            <!-- 输入区 -->
-            <div class="input-area" x-show="currentProject">
+            <!-- 正文编辑模式 -->
+            <div class="editor-content edit-area" x-show="currentChapter && editorMode === 'edit'">
+                <div class="edit-toolbar">
+                    <span class="save-status saving" x-show="saveStatus === 'saving'">保存中...</span>
+                    <span class="save-status saved" x-show="saveStatus === 'saved'">已保存</span>
+                    <span class="save-status unsaved" x-show="saveStatus === 'unsaved'">未保存</span>
+                    <span class="word-count" x-text="chapterWordCount + ' 字'"></span>
+                </div>
+                <textarea class="chapter-editor"
+                    x-model="chapterContent"
+                    @input="onContentInput()"
+                    placeholder="开始写作..."
+                    spellcheck="false"></textarea>
+            </div>
+
+            <!-- 输入区（仅对话模式） -->
+            <div class="input-area" x-show="currentProject && (!currentChapter || editorMode === 'chat')">
                 <div class="context-slider">
                     <label class="slider-label">上下文深度</label>
                     <input type="range" min="5" max="50" step="5" x-model.number="contextWindow" class="slider">

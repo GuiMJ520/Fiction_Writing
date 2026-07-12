@@ -8,6 +8,7 @@ from app.services.chapter_service import ChapterService
 from app.services.character_service import CharacterService
 from app.services.worldview_service import WorldviewService
 from app.services.chat_service import ChatService
+from app.services.export_service import ExportService
 
 
 def get_db(request: Request) -> Database:
@@ -36,3 +37,7 @@ def get_worldview_service(request: Request) -> WorldviewService:
 
 def get_chat_service(request: Request) -> ChatService:
     return request.app.state.chat_service
+
+
+def get_export_service(request: Request) -> ExportService:
+    return ExportService(request.app.state.db)

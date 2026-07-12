@@ -16,6 +16,11 @@ function novelApp() {
         contextWindow: 20,  // 滑动窗口：最近 N 条消息作为上下文
         contextInfo: { message_count: 0, compress_threshold: 30, has_summary: false },
         isCompressing: false,
+        // 章节正文编辑
+        editorMode: 'chat',  // 'chat' | 'edit'
+        chapterContent: '',
+        saveStatus: 'saved',  // 'saved' | 'saving' | 'unsaved'
+        saveTimer: null,
 
         // 设定面板
         activePanel: 'characters',  // 'characters' | 'worldviews'
@@ -104,6 +109,9 @@ function novelApp() {
 
         async selectChapter(chapter) {
             this.currentChapter = chapter;
+            this.editorMode = 'chat';
+            this.chapterContent = chapter.content || '';
+            this.saveStatus = 'saved';
             await this.loadMessages();
             await this.loadContextInfo();
         },
@@ -213,6 +221,59 @@ function novelApp() {
             } finally {
                 this.isCompressing = false;
             }
+        },
+
+        // ===== 章节正文编辑 =====
+        get chapterWordCount() {
+            return this.chapterContent ? this.chapterContent.length : 0;
+        },
+
+        switchToEdit() {
+            this.editorMode = 'edit';
+            if (this.currentChapter) {
+                this.chapterContent = this.currentChapter.content || '';
+            }
+        },
+
+        onContentInput() {
+            this.saveStatus = 'unsaved';
+            if (this.saveTimer) clearTimeout(this.saveTimer);
+            this.saveTimer = setTimeout(() => this.saveChapterContent(), 2000);
+        },
+
+        async saveChapterContent() {
+            if (!this.currentChapter) return;
+            this.saveStatus = 'saving';
+            try {
+                const updated = await api.updateChapter(
+                    this.currentChapter.id,
+                    { content: this.chapterContent }
+                );
+                this.currentChapter = updated;
+                this.saveStatus = 'saved';
+                await this.loadChapters();
+            } catch (e) {
+                this.saveStatus = 'unsaved';
+                this.error = '保存失败: ' + e;
+            }
+        },
+
+        // ===== 导出 =====
+        exportChapter() {
+            if (!this.currentChapter) return;
+            const fmt = 'txt';
+            window.open(
+                `/api/chapters/${this.currentChapter.id}/export?format=${fmt}`,
+                '_blank'
+            );
+        },
+
+        exportProject() {
+            if (!this.currentProject) return;
+            window.open(
+                `/api/projects/${this.currentProject.id}/export?format=md`,
+                '_blank'
+            );
         },
 
         // ===== 角色 =====

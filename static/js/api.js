@@ -93,6 +93,20 @@ const api = {
         const r = await fetch(url, { method: 'DELETE' });
         return r.json();
     },
+    async getContextInfo(projectId, chapterId = null) {
+        const url = chapterId
+            ? `/api/projects/${projectId}/context-info?chapter_id=${chapterId}`
+            : `/api/projects/${projectId}/context-info`;
+        const r = await fetch(url);
+        return r.json();
+    },
+    async compressContext(projectId, chapterId = null) {
+        const url = chapterId
+            ? `/api/projects/${projectId}/compress?chapter_id=${chapterId}`
+            : `/api/projects/${projectId}/compress`;
+        const r = await fetch(url, { method: 'POST' });
+        return r.json();
+    },
 
     // ===== LLM 状态 =====
     async llmHealth() {

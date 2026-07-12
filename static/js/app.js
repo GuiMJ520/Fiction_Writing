@@ -4,6 +4,7 @@ function novelApp() {
         // ===== 状态 =====
         projects: [],
         currentProject: null,
+        selectedProjectId: null,
         chapters: [],
         currentChapter: null,
         messages: [],
@@ -13,6 +14,8 @@ function novelApp() {
         llmOnline: false,
         error: '',
         contextWindow: 20,  // 滑动窗口：最近 N 条消息作为上下文
+        contextInfo: { message_count: 0, compress_threshold: 30, has_summary: false },
+        isCompressing: false,
 
         // 设定面板
         activePanel: 'characters',  // 'characters' | 'worldviews'
@@ -63,6 +66,7 @@ function novelApp() {
 
         async selectProject(project) {
             this.currentProject = project;
+            this.selectedProjectId = project?.id || null;
             this.currentChapter = null;
             this.messages = [];
             await Promise.all([
@@ -71,6 +75,12 @@ function novelApp() {
                 this.loadCharacters(),
                 this.loadWorldviews(),
             ]);
+            await this.loadContextInfo();
+        },
+
+        async onProjectSelect() {
+            const project = this.projects.find(p => p.id === this.selectedProjectId);
+            if (project) await this.selectProject(project);
         },
 
         async createProject() {
@@ -95,6 +105,7 @@ function novelApp() {
         async selectChapter(chapter) {
             this.currentChapter = chapter;
             await this.loadMessages();
+            await this.loadContextInfo();
         },
 
         async createChapter() {
@@ -144,6 +155,7 @@ function novelApp() {
                 },
                 signal: this.abortController.signal,
             }, this.contextWindow);
+            await this.loadContextInfo();
         },
 
         stopGeneration() {
@@ -158,6 +170,7 @@ function novelApp() {
             const chapterId = this.currentChapter?.id || null;
             await api.clearMessages(this.currentProject.id, chapterId);
             this.messages = [];
+            await this.loadContextInfo();
         },
 
         onKeydown(e) {
@@ -170,6 +183,36 @@ function novelApp() {
         backToProjectChat() {
             this.currentChapter = null;
             this.loadMessages();
+            this.loadContextInfo();
+        },
+
+        // ===== 上下文管理 =====
+        async loadContextInfo() {
+            if (!this.currentProject) return;
+            const chapterId = this.currentChapter?.id || null;
+            try {
+                this.contextInfo = await api.getContextInfo(this.currentProject.id, chapterId);
+            } catch {}
+        },
+
+        async compressContext() {
+            if (!this.currentProject || this.isCompressing) return;
+            this.isCompressing = true;
+            try {
+                const chapterId = this.currentChapter?.id || null;
+                const result = await api.compressContext(this.currentProject.id, chapterId);
+                if (result.compressed) {
+                    this.error = '';
+                    await this.loadMessages();
+                    await this.loadContextInfo();
+                } else {
+                    this.error = result.message;
+                }
+            } catch (e) {
+                this.error = '压缩失败: ' + e;
+            } finally {
+                this.isCompressing = false;
+            }
         },
 
         // ===== 角色 =====

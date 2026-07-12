@@ -86,6 +86,60 @@ async def clear_messages(
     return {"message": f"已清空 {count} 条消息"}
 
 
+@router.get("/projects/{project_id}/context-info", tags=["对话"])
+async def get_context_info(
+    project_id: int,
+    chapter_id: int | None = None,
+    svc: ChatService = Depends(get_chat_service),
+):
+    """获取上下文信息：消息数、压缩阈值、是否有摘要"""
+    msg_count = await svc.context_manager._count_messages(project_id, chapter_id)
+    threshold = svc.context_config.compress_threshold
+    has_summary = await svc.context_manager._get_latest_summary(project_id, chapter_id)
+    return {
+        "message_count": msg_count,
+        "compress_threshold": threshold,
+        "has_summary": bool(has_summary),
+        "near_threshold": msg_count >= threshold - 5,
+    }
+
+
+@router.post("/projects/{project_id}/compress", tags=["对话"])
+async def compress_context(
+    project_id: int,
+    chapter_id: int | None = None,
+    svc: ChatService = Depends(get_chat_service),
+    project_svc: ProjectService = Depends(get_project_service),
+):
+    """手动触发上下文压缩"""
+    if not await project_svc.get(project_id):
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    msg_count = await svc.context_manager._count_messages(project_id, chapter_id)
+    threshold = svc.context_config.compress_threshold
+
+    if msg_count < threshold:
+        return {
+            "compressed": False,
+            "message": f"消息数 {msg_count} 未达阈值 {threshold}，无需压缩",
+            "current_count": msg_count,
+        }
+
+    compressed = await svc.context_manager.maybe_compress(project_id, chapter_id)
+    new_count = await svc.context_manager._count_messages(project_id, chapter_id)
+
+    if compressed:
+        message = f"已压缩 {msg_count - new_count} 条旧消息为摘要"
+    else:
+        message = "压缩失败，请检查 LLM 是否在线后重试"
+
+    return {
+        "compressed": compressed,
+        "message": message,
+        "current_count": new_count,
+    }
+
+
 @router.get("/llm/health", tags=["LLM"])
 async def llm_health(llm_client=Depends(get_llm_client)):
     """检查 LLM 服务是否在线"""

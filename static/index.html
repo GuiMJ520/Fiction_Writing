@@ -12,9 +12,9 @@
     <header class="topbar">
         <div class="topbar-left">
             <h1 class="app-title">AI小说写作</h1>
-            <select class="project-select" x-model="currentProject" @change="selectProject(currentProject)">
+            <select class="project-select" x-model.number="selectedProjectId" @change="onProjectSelect()">
                 <template x-for="p in projects" :key="p.id">
-                    <option :value="p" x-text="p.name"></option>
+                    <option :value="p.id" x-text="p.name"></option>
                 </template>
             </select>
         </div>
@@ -75,7 +75,16 @@
                 <template x-if="!currentProject">
                     <h2>欢迎使用 AI小说写作</h2>
                 </template>
-                <button class="btn btn-sm" x-show="messages.length > 0" @click="clearMessages()">清空</button>
+                <div class="header-actions" x-show="currentProject">
+                    <span class="context-info" :class="{'near': contextInfo.near_threshold}">
+                        <span x-text="contextInfo.message_count + '/' + contextInfo.compress_threshold"></span>
+                        <span class="summary-badge" x-show="contextInfo.has_summary" title="已有摘要">摘要</span>
+                    </span>
+                    <button class="btn btn-sm" @click="compressContext()" :disabled="isCompressing" x-show="contextInfo.message_count >= 10">
+                        <span x-text="isCompressing ? '压缩中...' : '压缩'"></span>
+                    </button>
+                    <button class="btn btn-sm" @click="clearMessages()">清空</button>
+                </div>
             </div>
 
             <div class="editor-content chat-area">

@@ -8,26 +8,31 @@ from fastapi.responses import FileResponse
 
 from app.config import AppConfig, load_config
 from app.database import Database
-
-
-# 全局数据库实例（在 lifespan 中初始化）
-db: Database = None  # type: ignore
-config: AppConfig = None  # type: ignore
+from app.llm.factory import create_llm_client
+from app.services.context_manager import ContextManager
+from app.services.chat_service import ChatService
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期：启动时初始化数据库，关闭时释放连接"""
-    global db, config
+    """应用生命周期：启动时初始化数据库和 LLM 客户端，关闭时释放连接"""
     config = load_config()
     db = Database(config.database.path)
     await db.connect()
-    # 确保导出目录存在
     Path(config.export.output_dir).mkdir(parents=True, exist_ok=True)
+
+    # 创建 LLM 客户端和对话服务
+    llm_client = create_llm_client(config.llm)
+    context_manager = ContextManager(db, llm_client, config.context)
+    chat_service = ChatService(db, llm_client, context_manager, config.context)
+
     app.state.db = db
     app.state.config = config
+    app.state.llm_client = llm_client
+    app.state.chat_service = chat_service
     yield
     await db.close()
+    await llm_client.close()
 
 
 def create_app() -> FastAPI:
@@ -64,10 +69,11 @@ def create_app() -> FastAPI:
 
 def _register_routes(app: FastAPI) -> None:
     """注册所有 API 路由"""
-    from app.api.routes import projects, chapters
+    from app.api.routes import projects, chapters, chat
 
     app.include_router(projects.router, prefix="/api")
     app.include_router(chapters.router, prefix="/api")
+    app.include_router(chat.router, prefix="/api")
 
 
 app = create_app()

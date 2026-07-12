@@ -121,16 +121,69 @@
             </div>
         </section>
 
-        <!-- 右侧：设定面板（里程碑5实现） -->
+        <!-- 右侧：设定面板 -->
         <aside class="sidebar sidebar-right">
             <div class="sidebar-header">
-                <h2>设定</h2>
+                <div class="tab-switcher">
+                    <button class="tab" :class="{'active': activePanel === 'characters'}" @click="activePanel = 'characters'">角色</button>
+                    <button class="tab" :class="{'active': activePanel === 'worldviews'}" @click="activePanel = 'worldviews'">世界观</button>
+                </div>
+                <button class="btn btn-sm" x-show="currentProject" @click="activePanel === 'characters' ? openCharModal() : openWvModal()">+</button>
             </div>
             <div class="sidebar-content">
-                <div class="empty-state">
-                    <p>角色与世界观</p>
-                    <p class="hint">即将上线</p>
-                </div>
+                <template x-if="!currentProject">
+                    <div class="empty-state"><p>请先选择项目</p></div>
+                </template>
+
+                <!-- 角色面板 -->
+                <template x-if="currentProject && activePanel === 'characters'">
+                    <div class="setting-list">
+                        <template x-if="characters.length === 0">
+                            <div class="empty-state">
+                                <p>暂无角色</p>
+                                <button class="btn btn-sm" @click="openCharModal()">添加角色</button>
+                            </div>
+                        </template>
+                        <template x-for="char in characters" :key="char.id">
+                            <div class="setting-card" @click="openCharModal(char)">
+                                <div class="setting-card-header">
+                                    <span class="setting-card-title" x-text="char.name"></span>
+                                    <span class="tag" x-show="char.role" x-text="char.role"></span>
+                                </div>
+                                <p class="setting-card-desc" x-show="char.description" x-text="char.description"></p>
+                                <div class="setting-card-actions">
+                                    <button class="btn btn-sm" @click.stop="openCharModal(char)">编辑</button>
+                                    <button class="btn btn-sm btn-danger" @click.stop="deleteCharacter(char)">删除</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- 世界观面板 -->
+                <template x-if="currentProject && activePanel === 'worldviews'">
+                    <div class="setting-list">
+                        <template x-if="worldviews.length === 0">
+                            <div class="empty-state">
+                                <p>暂无世界观条目</p>
+                                <button class="btn btn-sm" @click="openWvModal()">添加条目</button>
+                            </div>
+                        </template>
+                        <template x-for="wv in worldviews" :key="wv.id">
+                            <div class="setting-card" @click="openWvModal(wv)">
+                                <div class="setting-card-header">
+                                    <span class="tag" x-text="wv.category"></span>
+                                    <span class="setting-card-title" x-text="wv.title"></span>
+                                </div>
+                                <p class="setting-card-desc" x-show="wv.content" x-text="wv.content"></p>
+                                <div class="setting-card-actions">
+                                    <button class="btn btn-sm" @click.stop="openWvModal(wv)">编辑</button>
+                                    <button class="btn btn-sm btn-danger" @click.stop="deleteWorldview(wv)">删除</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
             </div>
         </aside>
     </main>
@@ -165,6 +218,76 @@
             <div class="modal-actions">
                 <button class="btn" @click="showNewChapter = false">取消</button>
                 <button class="btn btn-primary" @click="createChapter()" :disabled="!newChapterTitle.trim()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框：角色编辑 -->
+    <div class="modal-overlay" x-show="showCharModal" @click.self="showCharModal = false" x-cloak>
+        <div class="modal modal-lg">
+            <h3 x-text="editingChar ? '编辑角色' : '添加角色'"></h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>姓名 *</label>
+                    <input type="text" x-model="charForm.name" placeholder="角色姓名">
+                </div>
+                <div class="form-group">
+                    <label>身份</label>
+                    <input type="text" x-model="charForm.role" placeholder="如：主角、反派、配角">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>简介</label>
+                <textarea x-model="charForm.description" rows="2" placeholder="一句话描述角色"></textarea>
+            </div>
+            <div class="form-group">
+                <label>性格</label>
+                <textarea x-model="charForm.personality" rows="2" placeholder="性格特点"></textarea>
+            </div>
+            <div class="form-group">
+                <label>背景</label>
+                <textarea x-model="charForm.background" rows="3" placeholder="角色背景故事"></textarea>
+            </div>
+            <div class="form-group">
+                <label>外貌</label>
+                <textarea x-model="charForm.appearance" rows="2" placeholder="外貌描写"></textarea>
+            </div>
+            <div class="form-group">
+                <label>关键词</label>
+                <input type="text" x-model="charForm.keywords" placeholder="逗号分隔，如：剑客, 冷酷, 复仇">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" @click="showCharModal = false">取消</button>
+                <button class="btn btn-primary" @click="saveCharacter()" :disabled="!charForm.name.trim()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框：世界观编辑 -->
+    <div class="modal-overlay" x-show="showWvModal" @click.self="showWvModal = false" x-cloak>
+        <div class="modal modal-lg">
+            <h3 x-text="editingWv ? '编辑世界观' : '添加世界观'"></h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>分类</label>
+                    <input type="text" x-model="wvForm.category" placeholder="如：地理、历史、势力、魔法体系">
+                </div>
+                <div class="form-group">
+                    <label>标题 *</label>
+                    <input type="text" x-model="wvForm.title" placeholder="条目标题">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>内容 *</label>
+                <textarea x-model="wvForm.content" rows="6" placeholder="详细描述"></textarea>
+            </div>
+            <div class="form-group">
+                <label>关键词</label>
+                <input type="text" x-model="wvForm.keywords" placeholder="逗号分隔">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" @click="showWvModal = false">取消</button>
+                <button class="btn btn-primary" @click="saveWorldview()" :disabled="!wvForm.title.trim() || !wvForm.content.trim()">保存</button>
             </div>
         </div>
     </div>

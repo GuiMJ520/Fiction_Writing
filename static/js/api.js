@@ -97,4 +97,56 @@ const api = {
         const r = await fetch('/api/llm/health');
         return r.json();
     },
+
+    // ===== 角色 =====
+    async listCharacters(projectId) {
+        const r = await fetch(`/api/projects/${projectId}/characters`);
+        return r.json();
+    },
+    async createCharacter(projectId, data) {
+        const r = await fetch(`/api/projects/${projectId}/characters`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        return r.json();
+    },
+    async updateCharacter(id, data) {
+        const r = await fetch(`/api/characters/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        return r.json();
+    },
+    async deleteCharacter(id) {
+        const r = await fetch(`/api/characters/${id}`, { method: 'DELETE' });
+        return r.json();
+    },
+
+    // ===== 世界观 =====
+    async listWorldviews(projectId) {
+        const r = await fetch(`/api/projects/${projectId}/worldviews`);
+        return r.json();
+    },
+    async createWorldview(projectId, data) {
+        const r = await fetch(`/api/projects/${projectId}/worldviews`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        return r.json();
+    },
+    async updateWorldview(id, data) {
+        const r = await fetch(`/api/worldviews/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        return r.json();
+    },
+    async deleteWorldview(id) {
+        const r = await fetch(`/api/worldviews/${id}`, { method: 'DELETE' });
+        return r.json();
+    },
 };

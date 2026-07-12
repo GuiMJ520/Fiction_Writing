@@ -69,10 +69,12 @@ def create_app() -> FastAPI:
 
 def _register_routes(app: FastAPI) -> None:
     """注册所有 API 路由"""
-    from app.api.routes import projects, chapters, chat
+    from app.api.routes import projects, chapters, characters, worldviews, chat
 
     app.include_router(projects.router, prefix="/api")
     app.include_router(chapters.router, prefix="/api")
+    app.include_router(characters.router, prefix="/api")
+    app.include_router(worldviews.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
 
 

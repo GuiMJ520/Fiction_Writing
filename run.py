@@ -8,7 +8,9 @@ def main():
     print(f"AI小说写作服务启动中...")
     print(f"  监听: http://{config.server.host}:{config.server.port}")
     print(f"  LLM: {config.llm.base_url} ({config.llm.api_type})")
-    print(f"  数据库: {config.database.path}")
+    print(f"  数据目录: {config.storage.data_dir}")
+    if config.server.open_browser:
+        print(f"  将自动打开浏览器")
     uvicorn.run(
         "app.api.app:app",
         host=config.server.host,

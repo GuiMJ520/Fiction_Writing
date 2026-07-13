@@ -30,8 +30,8 @@ llm:
     seed: -1                # 随机种子，-1 为随机
 
 # 数据库配置
-database:
-  path: data/novels.db
+storage:
+  data_dir: data            # 数据根目录，每个项目一个子文件夹
 
 # 上下文记忆管理
 context:
@@ -45,6 +45,7 @@ server:
   host: 127.0.0.1
   port: 8000
   reload: true              # 开发模式热重载
+  open_browser: true        # 启动时自动打开浏览器
 
 # 导出配置
 export:

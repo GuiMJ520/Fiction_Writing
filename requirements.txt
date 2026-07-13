@@ -5,9 +5,6 @@ uvicorn[standard]>=0.30.0
 # HTTP 客户端（调用 llama-server API）
 httpx>=0.27.0
 
-# 异步 SQLite
-aiosqlite>=0.20.0
-
 # 配置与数据验证
 pyyaml>=6.0
 pydantic>=2.0

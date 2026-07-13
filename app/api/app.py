@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.config import AppConfig, load_config
-from app.database import Database
+from app.storage import FileStorage
 from app.llm.factory import create_llm_client
 from app.services.context_manager import ContextManager
 from app.services.chat_service import ChatService
@@ -15,23 +15,31 @@ from app.services.chat_service import ChatService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期：启动时初始化数据库和 LLM 客户端，关闭时释放连接"""
+    """应用生命周期：启动时初始化存储和 LLM 客户端，关闭时释放连接"""
     config = load_config()
-    db = Database(config.database.path)
-    await db.connect()
+    storage = FileStorage(config.storage.data_dir)
+    await storage.connect()
     Path(config.export.output_dir).mkdir(parents=True, exist_ok=True)
 
     # 创建 LLM 客户端和对话服务
     llm_client = create_llm_client(config.llm)
-    context_manager = ContextManager(db, llm_client, config.context)
-    chat_service = ChatService(db, llm_client, context_manager, config.context)
+    context_manager = ContextManager(storage, llm_client, config.context)
+    chat_service = ChatService(storage, llm_client, context_manager, config.context)
 
-    app.state.db = db
+    app.state.storage = storage
     app.state.config = config
     app.state.llm_client = llm_client
     app.state.chat_service = chat_service
+
+    # 自动打开浏览器
+    if config.server.open_browser:
+        import webbrowser
+        import threading
+        url = f"http://{config.server.host}:{config.server.port}"
+        threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+
     yield
-    await db.close()
+    await storage.close()
     await llm_client.close()
 
 
@@ -62,7 +70,7 @@ def create_app() -> FastAPI:
             return FileResponse(str(index_path))
         return {"message": "AI小说写作服务正在运行，但前端页面未找到"}
 
-    # 注册路由（后续里程碑逐步添加）
+    # 注册路由
     _register_routes(app)
     return app
 

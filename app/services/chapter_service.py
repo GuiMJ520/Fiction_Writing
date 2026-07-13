@@ -1,45 +1,40 @@
 """章节服务 - 章节 CRUD 和排序"""
-from app.database import Database
+from app.storage import FileStorage
 from app.models import Chapter, ChapterCreate, ChapterUpdate
 from app.utils import count_words
 
 
 class ChapterService:
-    def __init__(self, db: Database):
-        self.db = db
+    def __init__(self, storage: FileStorage):
+        self.storage = storage
 
     async def create(
         self, project_id: int, data: ChapterCreate
     ) -> Chapter:
         """创建章节。未指定 order 时自动追加到末尾"""
         if data.chapter_order is None:
-            # 自动计算下一个 order
-            row = await self.db.fetch_one(
-                "SELECT COALESCE(MAX(chapter_order), 0) + 1 AS next_order "
-                "FROM chapters WHERE project_id = ?",
-                (project_id,),
+            existing = await self.storage.list_chapters_by_project(project_id)
+            order = (
+                max((c.get("chapter_order", 0) for c in existing), default=0) + 1
             )
-            order = row["next_order"] if row else 1
         else:
             order = data.chapter_order
-        cursor = await self.db.execute(
-            """INSERT INTO chapters (project_id, title, chapter_order)
-               VALUES (?, ?, ?)""",
-            (project_id, data.title, order),
+        chapter = await self.storage.create_chapter(
+            project_id, {"title": data.title, "chapter_order": order}
         )
-        return await self.get(cursor.lastrowid)  # type: ignore
+        return Chapter(**chapter)
 
     async def get(self, chapter_id: int) -> Chapter | None:
-        row = await self.db.fetch_one(
-            "SELECT * FROM chapters WHERE id = ?", (chapter_id,)
-        )
-        return Chapter(**row) if row else None
+        """获取章节（含正文）"""
+        meta = await self.storage.get_chapter(chapter_id)
+        if not meta:
+            return None
+        meta["content"] = await self.storage.get_chapter_content(chapter_id)
+        return Chapter(**meta)
 
     async def list_by_project(self, project_id: int) -> list[Chapter]:
-        rows = await self.db.fetch_all(
-            "SELECT * FROM chapters WHERE project_id = ? ORDER BY chapter_order",
-            (project_id,),
-        )
+        """列出项目的所有章节（仅元数据，不含正文）"""
+        rows = await self.storage.list_chapters_by_project(project_id)
         return [Chapter(**r) for r in rows]
 
     async def update(
@@ -49,28 +44,25 @@ class ChapterService:
         fields = data.model_dump(exclude_none=True)
         if not fields:
             return await self.get(chapter_id)
-        # 如果更新了 content，同步更新 word_count
+        # 如果更新了 content，同步更新 word_count 并写入 .md 文件
+        content_updated = False
         if "content" in fields:
-            fields["word_count"] = count_words(fields["content"])
-        set_clauses = ", ".join(f"{k} = ?" for k in fields)
-        values = list(fields.values()) + [chapter_id]
-        await self.db.execute(
-            f"UPDATE chapters SET {set_clauses}, "
-            f"updated_at = datetime('now','localtime') WHERE id = ?",
-            tuple(values),
-        )
-        return await self.get(chapter_id)
+            content = fields.pop("content")
+            fields["word_count"] = count_words(content)
+            await self.storage.set_chapter_content(chapter_id, content)
+            content_updated = True
+        if not fields:
+            return await self.get(chapter_id)
+        row = await self.storage.update_chapter(chapter_id, fields)
+        if not row:
+            return None
+        if content_updated:
+            row["content"] = await self.storage.get_chapter_content(chapter_id)
+        return Chapter(**row)
 
     async def reorder(self, project_id: int, chapter_ids: list[int]) -> None:
         """按给定的 id 顺序重新排列章节"""
-        for index, chapter_id in enumerate(chapter_ids, start=1):
-            await self.db.execute(
-                "UPDATE chapters SET chapter_order = ? WHERE id = ? AND project_id = ?",
-                (index, chapter_id, project_id),
-            )
+        await self.storage.reorder_chapters(project_id, chapter_ids)
 
     async def delete(self, chapter_id: int) -> bool:
-        cursor = await self.db.execute(
-            "DELETE FROM chapters WHERE id = ?", (chapter_id,)
-        )
-        return cursor.rowcount > 0
+        return await self.storage.delete_chapter(chapter_id)

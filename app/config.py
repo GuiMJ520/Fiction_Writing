@@ -23,9 +23,9 @@ class LLMConfig(BaseModel):
     generation: GenerationParams = Field(default_factory=GenerationParams)
 
 
-class DatabaseConfig(BaseModel):
-    """数据库配置"""
-    path: str = "data/novels.db"
+class StorageConfig(BaseModel):
+    """文件系统存储配置"""
+    data_dir: str = "data"
 
 
 class ContextConfig(BaseModel):
@@ -41,6 +41,7 @@ class ServerConfig(BaseModel):
     host: str = "127.0.0.1"
     port: int = 8000
     reload: bool = True
+    open_browser: bool = True      # 启动时自动打开浏览器
 
 
 class ExportConfig(BaseModel):
@@ -51,7 +52,7 @@ class ExportConfig(BaseModel):
 class AppConfig(BaseModel):
     """应用总配置"""
     llm: LLMConfig = Field(default_factory=LLMConfig)
-    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     export: ExportConfig = Field(default_factory=ExportConfig)

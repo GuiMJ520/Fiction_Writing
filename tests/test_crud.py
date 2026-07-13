@@ -1,28 +1,28 @@
 """里程碑3 测试 - 项目和章节 CRUD
 
-直接测试 service 层（不经过 HTTP），验证数据库操作正确。
+直接测试 service 层（不经过 HTTP），验证文件系统存储操作正确。
 """
 import asyncio
+import shutil
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.database import Database
+from app.storage import FileStorage
 from app.services.project_service import ProjectService
 from app.services.chapter_service import ChapterService
 from app.models import ProjectCreate, ProjectUpdate, ChapterCreate, ChapterUpdate
+
+TEST_DIR = "data/test_crud"
 
 
 async def test_project_crud():
     """测试项目 CRUD"""
     print("\n=== 项目 CRUD 测试 ===")
-    db = Database("data/test_crud.db")
-    await db.connect()
-    svc = ProjectService(db)
-
-    # 清空旧数据（测试用）
-    await db.execute("DELETE FROM projects")
+    storage = FileStorage(TEST_DIR)
+    await storage.connect()
+    svc = ProjectService(storage)
 
     # 1. 创建
     print("[1] 创建项目...")
@@ -70,20 +70,17 @@ async def test_project_crud():
 
     # 清理
     await svc.delete(project2.id)
-    await db.close()
+    await storage.close()
     print("\n✅ 项目 CRUD 测试通过")
 
 
 async def test_chapter_crud():
     """测试章节 CRUD"""
     print("\n=== 章节 CRUD 测试 ===")
-    db = Database("data/test_crud.db")
-    await db.connect()
-    project_svc = ProjectService(db)
-    chapter_svc = ChapterService(db)
-
-    # 清空旧数据
-    await db.execute("DELETE FROM projects")
+    storage = FileStorage(TEST_DIR)
+    await storage.connect()
+    project_svc = ProjectService(storage)
+    chapter_svc = ChapterService(storage)
 
     # 先创建项目
     project = await project_svc.create(ProjectCreate(name="章节测试项目"))
@@ -115,6 +112,11 @@ async def test_chapter_crud():
     assert updated.word_count > 0
     print(f"  ✓ 更新成功，字数: {updated.word_count}")
 
+    # 验证 .md 文件内容
+    content = await storage.get_chapter_content(ch1.id)
+    assert content == "这是第一章的正文内容，包含一些文字。"
+    print(f"  ✓ .md 文件内容正确")
+
     # 4. 更新标题
     print("[4] 更新章节标题...")
     updated = await chapter_svc.update(ch1.id, ChapterUpdate(title="序章"))
@@ -145,16 +147,27 @@ async def test_chapter_crud():
     assert len(chapters) == 0
     print(f"  ✓ 删除项目后章节自动清空: {len(chapters)} 个")
 
-    await db.close()
+    await storage.close()
     print("\n✅ 章节 CRUD 测试通过")
 
 
 async def main():
     print("=" * 50)
-    print("里程碑3：CRUD 测试")
+    print("里程碑3：CRUD 测试（文件系统存储）")
     print("=" * 50)
+
+    # 清理旧测试数据
+    test_path = Path(TEST_DIR)
+    if test_path.exists():
+        shutil.rmtree(test_path)
+
     await test_project_crud()
     await test_chapter_crud()
+
+    # 最终清理
+    if test_path.exists():
+        shutil.rmtree(test_path)
+
     print("\n" + "=" * 50)
     print("✅ 所有 CRUD 测试通过")
     print("=" * 50)

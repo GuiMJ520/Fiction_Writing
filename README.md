@@ -20,13 +20,15 @@
 - **Toast 通知**：操作反馈通过右上角 toast 提示，支持 error/warning/info/success 四种类型
 - **上下文深度调节**：滑块控制对话上下文消息数（5-50 条）
 - **自动滚动**：新消息生成时自动滚动到底部
+- **自动打开浏览器**：启动服务后自动打开浏览器访问应用
 
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
 | 前端 | Alpine.js v3（无构建步骤）、原生 CSS（变量驱动主题） |
-| 后端 | Python 3.14、FastAPI、aiosqlite（异步 SQLite） |
+| 后端 | Python 3.14、FastAPI |
+| 存储 | 文件系统（JSON 元数据 + Markdown 章节正文） |
 | LLM 接入 | OpenAI 兼容接口、llama.cpp 原生接口（支持 grammar 约束） |
 | 通信 | HTTP REST API、SSE 流式输出 |
 
@@ -75,7 +77,7 @@
 ### 2. 安装依赖
 
 ```bash
-pip install fastapi uvicorn aiosqlite httpx pydantic pyyaml
+pip install fastapi uvicorn httpx pydantic pyyaml
 ```
 
 ### 3. 配置
@@ -90,8 +92,8 @@ cp config.example.yaml config.yaml
 
 ```yaml
 llm:
-  backend: openai          # openai | llama
-  base_url: http://127.0.0.1:8080/v1
+  api_type: openai_compat   # openai_compat | llama_native
+  base_url: http://127.0.0.1:8080
   api_key: ""
   model: your-model-name
 
@@ -105,8 +107,14 @@ context:
   compress_threshold: 30   # 触发压缩的消息数阈值
   compress_batch: 10       # 每次压缩的消息数
 
-database:
-  path: data/novel.db
+storage:
+  data_dir: data           # 数据根目录，每个项目一个子文件夹
+
+server:
+  host: 127.0.0.1
+  port: 8000
+  reload: true
+  open_browser: true       # 启动时自动打开浏览器
 ```
 
 ### 4. 启动 LLM 服务
@@ -123,7 +131,7 @@ llama-server -m your-model.gguf --port 8080
 python run.py
 ```
 
-浏览器访问 http://127.0.0.1:8000 即可使用。
+启动后会自动打开浏览器访问 http://127.0.0.1:8000。
 
 ## 使用指南
 
@@ -176,7 +184,7 @@ AI小说写作/
 │   │   ├── context_manager.py
 │   │   └── export_service.py
 │   ├── config.py         # 配置加载
-│   ├── database.py       # SQLite 数据库
+│   ├── storage.py        # 文件系统存储
 │   ├── models.py         # Pydantic 模型
 │   └── utils.py          # 工具函数
 ├── static/               # 前端静态资源
@@ -193,18 +201,41 @@ AI小说写作/
 └── README.md
 ```
 
-## 数据库设计
+## 存储设计
 
-SQLite 6 张表，全部使用 `ON DELETE CASCADE` 保证数据一致性：
+采用文件系统存储，每个项目一个独立文件夹，章节正文保存为单独的 Markdown 文件，元数据使用 JSON 管理：
 
-| 表 | 说明 |
-|----|------|
-| `projects` | 项目（名称、类型） |
-| `chapters` | 章节（标题、正文、排序） |
-| `characters` | 角色（姓名、身份、性格、背景、外貌、关键词） |
-| `worldviews` | 世界观（分类、标题、内容、关键词） |
-| `messages` | 对话消息（角色、内容、章节关联） |
-| `summaries` | 摘要（压缩后的对话摘要） |
+```
+data/
+├── index.json              # 全局 ID 计数器 + 实体到项目的映射
+├── projects/
+│   └── {project_id}/
+│       ├── project.json    # 项目元数据
+│       ├── chapters/
+│       │   ├── chapters.json       # 章节元数据列表
+│       │   └── {id:04d}_{title}.md # 章节正文
+│       ├── characters.json # 角色列表
+│       ├── worldviews.json # 世界观列表
+│       ├── messages.json   # 对话消息（含摘要消息）
+│       └── summaries.json  # 摘要历史记录
+└── exports/                # 导出文件目录
+```
+
+| 文件 | 说明 |
+|------|------|
+| `index.json` | 全局 ID 计数器 + 实体到项目的映射（支持不带 project_id 的路由） |
+| `project.json` | 项目元数据（名称、类型、描述、系统提示词） |
+| `chapters.json` | 章节元数据列表（标题、排序、状态、摘要、字数） |
+| `{id:04d}_{title}.md` | 章节正文（Markdown 格式，标题变更时自动重命名） |
+| `characters.json` | 角色列表（姓名、身份、性格、背景、外貌、关键词） |
+| `worldviews.json` | 世界观列表（分类、标题、内容、关键词） |
+| `messages.json` | 对话消息（角色、内容、token 数、是否摘要） |
+| `summaries.json` | 摘要记录（压缩后的对话摘要） |
+
+**关键设计**：
+- 原子写入：所有 JSON 文件先写 `.tmp` 再 `os.replace()`，防止数据损坏
+- 并发安全：使用 `asyncio.Lock` 保护写操作
+- 级联删除：删除项目时直接删除整个项目文件夹
 
 ## 开发说明
 
@@ -216,7 +247,7 @@ SQLite 6 张表，全部使用 `ON DELETE CASCADE` 保证数据一致性：
 
 ### 添加新的 Service
 
-Service 层通过 `create_services(config)` 工厂函数初始化，所有 Service 接收 `Database` 实例，不依赖 FastAPI。
+Service 层通过 `create_services(config)` 工厂函数初始化，所有 Service 接收 `FileStorage` 实例，不依赖 FastAPI。
 
 ## License
 

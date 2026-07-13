@@ -4,10 +4,17 @@
 1. context-info 端点返回正确的消息计数
 2. 消息数未达阈值时压缩返回 False
 3. 消息数超阈值时触发压缩流程（LLM 离线时 graceful 失败）
-4. 压缩后摘要消息和 summaries 表记录正确（需要 LLM 在线，离线时跳过）
+4. 压缩后摘要消息和 summaries 记录正确（需要 LLM 在线，离线时跳过）
 """
 import asyncio
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import httpx
+from app.storage import FileStorage
+from app.utils import estimate_tokens
 
 BASE = "http://127.0.0.1:8000/api"
 
@@ -34,18 +41,17 @@ async def main():
         print(f"[压缩] 不足阈值: compressed={result['compressed']}, msg={result['message']}")
         assert result["compressed"] is False
 
-        # 3. 插入 35 条消息（超过阈值 30）
+        # 3. 通过 FileStorage 直接插入 35 条消息（超过阈值 30）
         print("\n[插入] 35 条测试消息...")
-        import aiosqlite
-        async with aiosqlite.connect("data/novels.db") as db:
-            for i in range(35):
-                role = "user" if i % 2 == 0 else "assistant"
-                await db.execute(
-                    "INSERT INTO messages (project_id, chapter_id, role, content, token_count, is_summary) "
-                    "VALUES (?, NULL, ?, ?, ?, 0)",
-                    (pid, role, f"测试消息第{i+1}条，内容内容内容", 10),
-                )
-            await db.commit()
+        storage = FileStorage("data")
+        await storage.connect()
+        for i in range(35):
+            role = "user" if i % 2 == 0 else "assistant"
+            content = f"测试消息第{i+1}条，内容内容内容"
+            await storage.add_message(
+                pid, None, role, content, estimate_tokens(content)
+            )
+        await storage.close()
 
         # 4. 验证 context-info 显示 35 条
         r = await c.get(f"/projects/{pid}/context-info")
@@ -71,15 +77,15 @@ async def main():
             # 35 - 10 (compress_batch) = 25 条非摘要 + 1 条摘要
             assert info["message_count"] == 25
 
-            # 验证 summaries 表有记录
-            async with aiosqlite.connect("data/novels.db") as db:
-                cursor = await db.execute(
-                    "SELECT content, message_count FROM summaries WHERE project_id = ?", (pid,)
-                )
-                row = await cursor.fetchone()
-                if row:
-                    print(f"[summaries] 记录: count={row[1]}, content={row[0][:80]}...")
-                    assert row[1] == 10  # compress_batch
+            # 验证 summaries.json 有记录
+            import json
+            summaries_path = Path(f"data/projects/{pid}/summaries.json")
+            if summaries_path.exists():
+                summaries = json.loads(summaries_path.read_text(encoding="utf-8"))
+                if summaries:
+                    s = summaries[-1]
+                    print(f"[summaries] 记录: count={s['message_count']}, content={s['content'][:80]}...")
+                    assert s["message_count"] == 10  # compress_batch
         else:
             print("[跳过] LLM 离线，压缩逻辑未完整执行（预期行为）")
 

@@ -1,14 +1,14 @@
 """导出服务 - 将章节/项目导出为 txt 或 markdown"""
-from app.database import Database
+from app.storage import FileStorage
 from app.services.chapter_service import ChapterService
 from app.services.project_service import ProjectService
 
 
 class ExportService:
-    def __init__(self, db: Database):
-        self.db = db
-        self.chapter_svc = ChapterService(db)
-        self.project_svc = ProjectService(db)
+    def __init__(self, storage: FileStorage):
+        self.storage = storage
+        self.chapter_svc = ChapterService(storage)
+        self.project_svc = ProjectService(storage)
 
     async def export_chapter(
         self, chapter_id: int, fmt: str = "txt"

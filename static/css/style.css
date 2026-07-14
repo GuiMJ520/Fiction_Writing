@@ -527,8 +527,48 @@ body {
 .input-actions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 8px;
     margin-top: 8px;
+}
+
+.input-spacer {
+    flex: 1;
+}
+
+.auto-save-toggle {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    margin-right: auto;
+}
+
+.auto-save-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.auto-save-toggle .toggle-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
+    font-size: 13px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    transition: all 0.2s;
+}
+
+.auto-save-toggle .toggle-label:hover {
+    border-color: var(--color-primary);
+    color: var(--color-text);
+}
+
+.auto-save-toggle .toggle-label.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
 }
 
 /* ===== 空状态 ===== */

@@ -56,6 +56,14 @@ const api = {
         });
         return r.json();
     },
+    async appendChapterContent(id, content, marker = '') {
+        const r = await fetch(`/api/chapters/${id}/append`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content, marker }),
+        });
+        return r.json();
+    },
     async deleteChapter(id) {
         const r = await fetch(`/api/chapters/${id}`, { method: 'DELETE' });
         return r.json();

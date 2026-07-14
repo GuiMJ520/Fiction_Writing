@@ -1,7 +1,7 @@
 """章节路由 - /api/projects/{pid}/chapters 和 /api/chapters/{cid}"""
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.models import Chapter, ChapterCreate, ChapterUpdate
+from app.models import Chapter, ChapterAppend, ChapterCreate, ChapterUpdate
 from app.services.chapter_service import ChapterService
 from app.services.project_service import ProjectService
 from app.api.dependencies import get_chapter_service, get_project_service
@@ -59,6 +59,27 @@ async def update_chapter(
 ):
     """更新章节（标题/内容/状态/摘要）"""
     chapter = await svc.update(chapter_id, data)
+    if not chapter:
+        raise HTTPException(status_code=404, detail="章节不存在")
+    return chapter
+
+
+@router.post(
+    "/chapters/{chapter_id}/append",
+    response_model=Chapter,
+    tags=["章节"],
+)
+async def append_chapter_content(
+    chapter_id: int,
+    data: ChapterAppend,
+    svc: ChapterService = Depends(get_chapter_service),
+):
+    """追加内容到章节正文末尾（用于 AI 回复自动保存到章节正文）
+
+    请求体：{"content": "要追加的文本", "marker": "<!-- AI 回复 -->"}
+    返回更新后的章节元数据（不含正文）。
+    """
+    chapter = await svc.append_content(chapter_id, data.content, data.marker)
     if not chapter:
         raise HTTPException(status_code=404, detail="章节不存在")
     return chapter

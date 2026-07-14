@@ -15,6 +15,7 @@ function novelApp() {
         contextWindow: 20,  // 滑动窗口：最近 N 条消息作为上下文
         contextInfo: { message_count: 0, compress_threshold: 30, has_summary: false },
         isCompressing: false,
+        autoSaveToChapter: false,  // AI 回复自动追加到当前章节正文（开关）
         // 章节正文编辑
         editorMode: 'chat',  // 'chat' | 'edit'
         chapterContent: '',
@@ -232,9 +233,30 @@ function novelApp() {
             const chapterId = this.currentChapter?.id || null;
             await api.chat(this.currentProject.id, msg, chapterId, {
                 onChunk: (chunk) => { aiMsg.content += chunk; },
-                onDone: () => {
+                onDone: async () => {
                     this.isGenerating = false;
                     this.abortController = null;
+                    // 自动追加 AI 回复到当前章节正文
+                    if (this.autoSaveToChapter && this.currentChapter && aiMsg.content) {
+                        try {
+                            const now = new Date();
+                            const ts = now.toLocaleString('zh-CN', { hour12: false });
+                            const marker = `<!-- AI 回复 · ${ts} -->`;
+                            const updated = await api.appendChapterContent(
+                                this.currentChapter.id,
+                                aiMsg.content,
+                                marker
+                            );
+                            // 同步本地章节的 word_count
+                            if (updated && updated.word_count !== undefined) {
+                                const ch = this.chapters.find(c => c.id === this.currentChapter.id);
+                                if (ch) ch.word_count = updated.word_count;
+                            }
+                            this.showToast('已保存到章节正文', 'success', 2000);
+                        } catch (e) {
+                            this.showToast('保存到章节失败: ' + e, 'error');
+                        }
+                    }
                 },
                 onError: (err) => {
                     this.isGenerating = false;

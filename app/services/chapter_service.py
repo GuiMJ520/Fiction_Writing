@@ -64,5 +64,14 @@ class ChapterService:
         """按给定的 id 顺序重新排列章节"""
         await self.storage.reorder_chapters(project_id, chapter_ids)
 
+    async def append_content(
+        self, chapter_id: int, content: str, marker: str = ""
+    ) -> Chapter | None:
+        """追加内容到章节正文末尾（用于 AI 回复自动保存到章节正文）"""
+        meta = await self.storage.append_chapter_content(chapter_id, content, marker)
+        if not meta:
+            return None
+        return Chapter(**meta)
+
     async def delete(self, chapter_id: int) -> bool:
         return await self.storage.delete_chapter(chapter_id)

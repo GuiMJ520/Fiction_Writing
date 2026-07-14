@@ -320,6 +320,60 @@ class FileStorage:
             md_path.parent.mkdir(parents=True, exist_ok=True)
             md_path.write_text(content, encoding="utf-8")
 
+    async def append_chapter_content(
+        self, chapter_id: int, content: str, marker: str = ""
+    ) -> dict | None:
+        """追加内容到章节正文末尾（带可选 marker），自动更新 word_count
+
+        返回更新后的章节元数据（不含正文）。
+        """
+        async with self._lock:
+            pid = self._index.get("chapter_to_project", {}).get(str(chapter_id))
+            if pid is None:
+                return None
+            path = self._chapters_json_path(pid)
+            chapters = self._read_json(path, [])
+            target = None
+            title = ""
+            for ch in chapters:
+                if ch.get("id") == chapter_id:
+                    target = ch
+                    title = ch.get("title", "")
+                    break
+            if not target:
+                return None
+
+            md_path = self._find_chapter_md(pid, chapter_id)
+            if not md_path:
+                md_path = self._chapter_md_path(pid, chapter_id, title)
+            md_path.parent.mkdir(parents=True, exist_ok=True)
+
+            existing = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
+
+            # 拼接新内容：已有内容 + 分隔符 + marker + 新内容
+            if existing:
+                # 已有内容时，确保以单个换行结尾
+                base = existing.rstrip("\n")
+                if marker:
+                    new_content = f"{base}\n\n{marker}\n\n{content}\n"
+                else:
+                    new_content = f"{base}\n\n{content}\n"
+            else:
+                # 空章节
+                if marker:
+                    new_content = f"{marker}\n\n{content}\n"
+                else:
+                    new_content = f"{content}\n"
+
+            md_path.write_text(new_content, encoding="utf-8")
+
+            # 更新 word_count
+            from app.utils import count_words
+            target["word_count"] = count_words(new_content)
+            target["updated_at"] = _now()
+            self._write_json(path, chapters)
+            return target
+
     async def reorder_chapters(
         self, project_id: int, chapter_ids: list[int]
     ) -> None:

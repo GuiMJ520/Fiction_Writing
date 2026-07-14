@@ -117,6 +117,12 @@ class ChapterUpdate(BaseModel):
     summary: str | None = None
 
 
+class ChapterAppend(BaseModel):
+    """追加内容到章节请求（用于 AI 回复自动保存到章节正文）"""
+    content: str
+    marker: str = ""  # 可选：追加前的标记文本，如 "<!-- AI 回复 -->"
+
+
 class CharacterCreate(BaseModel):
     """创建角色请求"""
     name: str

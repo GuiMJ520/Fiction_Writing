@@ -65,10 +65,23 @@
                 <div class="chapter-list">
                     <template x-for="ch in chapters" :key="ch.id">
                         <div class="chapter-item"
-                             :class="{'active': currentChapter?.id === ch.id}"
+                             :class="{'active': currentChapter?.id === ch.id, 'editing': editingChapterId === ch.id}"
                              @click="selectChapter(ch)">
                             <span class="chapter-order" x-text="ch.chapter_order"></span>
-                            <span class="chapter-title" x-text="ch.title"></span>
+                            <template x-if="editingChapterId === ch.id">
+                                <input class="chapter-title-input"
+                                       x-model="editingChapterTitle"
+                                       @keydown.enter.prevent="saveChapterRename(ch)"
+                                       @keydown.escape="cancelChapterRename()"
+                                       @blur="saveChapterRename(ch)"
+                                       @click.stop
+                                       x-ref="chapterRenameInput">
+                            </template>
+                            <template x-if="editingChapterId !== ch.id">
+                                <span class="chapter-title" x-text="ch.title" @dblclick.stop="startChapterRename(ch)"></span>
+                            </template>
+                            <button class="chapter-edit-btn" x-show="editingChapterId !== ch.id"
+                                    @click.stop="startChapterRename(ch)" title="重命名">✏</button>
                         </div>
                     </template>
                 </div>
@@ -81,7 +94,17 @@
                 <template x-if="currentChapter">
                     <div class="chapter-header">
                         <span class="back-link" @click="backToProjectChat()">← 返回</span>
-                        <h2 x-text="currentChapter.title"></h2>
+                        <template x-if="editingHeaderId !== currentChapter.id">
+                            <h2 x-text="currentChapter.title" @dblclick="startHeaderRename()" title="双击重命名"></h2>
+                        </template>
+                        <template x-if="editingHeaderId === currentChapter.id">
+                            <input class="header-title-input"
+                                   x-model="editingHeaderTitle"
+                                   @keydown.enter.prevent="saveHeaderRename()"
+                                   @keydown.escape="cancelHeaderRename()"
+                                   @blur="saveHeaderRename()"
+                                   x-init="$nextTick(() => $el.focus())">
+                        </template>
                         <div class="tab-switcher">
                             <button class="tab" :class="{'active': editorMode === 'chat'}" @click="editorMode = 'chat'">对话</button>
                             <button class="tab" :class="{'active': editorMode === 'edit'}" @click="switchToEdit()">正文</button>

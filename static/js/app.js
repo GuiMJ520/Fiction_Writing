@@ -16,6 +16,12 @@ function novelApp() {
         contextInfo: { message_count: 0, compress_threshold: 30, has_summary: false },
         isCompressing: false,
         autoSaveToChapter: false,  // AI 回复自动追加到当前章节正文（开关）
+
+        // 重命名章节相关
+        editingChapterId: null,        // 列表项中正在编辑的章节 id
+        editingChapterTitle: '',       // 列表项中正在编辑的标题
+        editingHeaderId: null,         // 详情页 h2 正在编辑的章节 id
+        editingHeaderTitle: '',        // 详情页 h2 正在编辑的标题
         // 章节正文编辑
         editorMode: 'chat',  // 'chat' | 'edit'
         chapterContent: '',
@@ -304,6 +310,79 @@ function novelApp() {
             try {
                 this.contextInfo = await api.getContextInfo(this.currentProject.id, chapterId);
             } catch {}
+        },
+
+        // ===== 章节重命名 =====
+
+        startChapterRename(ch) {
+            // 同时只能编辑一处
+            this.editingHeaderId = null;
+            this.editingChapterId = ch.id;
+            this.editingChapterTitle = ch.title;
+            this.$nextTick(() => {
+                // x-for 内的 x-ref 会被覆盖，所以用 querySelector 定位当前编辑项
+                const el = document.querySelector('.chapter-item.editing .chapter-title-input');
+                if (el) { el.focus(); el.select(); }
+            });
+        },
+
+        async saveChapterRename(ch) {
+            // 防止重复触发（blur 和 enter 都会调用）
+            if (this.editingChapterId !== ch.id) return;
+            const newTitle = this.editingChapterTitle.trim();
+            this.editingChapterId = null;
+            this.editingChapterTitle = '';
+            if (!newTitle || newTitle === ch.title) return;
+            try {
+                const updated = await api.updateChapter(ch.id, { title: newTitle });
+                if (updated && updated.id) {
+                    ch.title = updated.title;
+                    if (this.currentChapter && this.currentChapter.id === ch.id) {
+                        this.currentChapter.title = updated.title;
+                    }
+                    this.showToast('章节已重命名', 'success', 2000);
+                }
+            } catch (e) {
+                this.showToast('重命名失败: ' + e, 'error');
+            }
+        },
+
+        cancelChapterRename() {
+            this.editingChapterId = null;
+            this.editingChapterTitle = '';
+        },
+
+        startHeaderRename() {
+            if (!this.currentChapter) return;
+            this.editingChapterId = null;
+            this.editingHeaderId = this.currentChapter.id;
+            this.editingHeaderTitle = this.currentChapter.title;
+        },
+
+        async saveHeaderRename() {
+            if (this.editingHeaderId == null || !this.currentChapter) return;
+            const ch = this.currentChapter;
+            const newTitle = this.editingHeaderTitle.trim();
+            this.editingHeaderId = null;
+            this.editingHeaderTitle = '';
+            if (!newTitle || newTitle === ch.title) return;
+            try {
+                const updated = await api.updateChapter(ch.id, { title: newTitle });
+                if (updated && updated.id) {
+                    ch.title = updated.title;
+                    // 同步列表
+                    const inList = this.chapters.find(c => c.id === ch.id);
+                    if (inList) inList.title = updated.title;
+                    this.showToast('章节已重命名', 'success', 2000);
+                }
+            } catch (e) {
+                this.showToast('重命名失败: ' + e, 'error');
+            }
+        },
+
+        cancelHeaderRename() {
+            this.editingHeaderId = null;
+            this.editingHeaderTitle = '';
         },
 
         async compressContext() {

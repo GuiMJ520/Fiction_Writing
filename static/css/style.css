@@ -271,10 +271,45 @@ body {
 }
 
 .chapter-title {
+    flex: 1;
     font-size: 13px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.chapter-edit-btn {
+    opacity: 0;
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: opacity 0.15s, background 0.15s;
+}
+.chapter-item:hover .chapter-edit-btn {
+    opacity: 1;
+}
+.chapter-edit-btn:hover {
+    background: var(--color-border);
+    color: var(--color-primary);
+}
+
+.chapter-title-input {
+    flex: 1;
+    font-size: 13px;
+    padding: 2px 6px;
+    border: 1px solid var(--color-primary);
+    border-radius: 3px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    outline: none;
+}
+.chapter-item.editing {
+    background: var(--color-bg);
+    cursor: text;
 }
 
 /* ===== 中间对话区 ===== */
@@ -763,6 +798,25 @@ body {
 }
 .chapter-header h2 {
     margin: 0;
+    cursor: text;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.15s;
+}
+.chapter-header h2:hover {
+    background: var(--color-bg);
+}
+
+.header-title-input {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border: 1px solid var(--color-primary);
+    border-radius: 3px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    outline: none;
+    min-width: 200px;
 }
 
 /* 正文编辑区 */

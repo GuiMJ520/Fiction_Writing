@@ -5,7 +5,7 @@ from typing import AsyncGenerator
 import httpx
 
 from app.utils import estimate_tokens
-from .base import LLMClient, ChatMessage, GenerateParams
+from .base import LLMClient, ChatMessage, GenerateParams, ThinkFilter
 
 
 class LlamaNativeClient(LLMClient):
@@ -67,10 +67,11 @@ class LlamaNativeClient(LLMClient):
         messages: list[ChatMessage],
         params: GenerateParams | None = None,
     ) -> AsyncGenerator[str, None]:
-        """流式对话：解析 SSE，yield content 字段"""
+        """流式对话：解析 SSE，yield content 字段（自动过滤 <think> 标签）"""
         prompt = self._messages_to_prompt(messages)
         payload = self._build_payload(prompt, params, stream=True)
         url = f"{self.base_url}/completion"
+        think_filter = ThinkFilter()
         async with self._client.stream(
             "POST", url, json=payload, headers=self._headers()
         ) as resp:
@@ -82,24 +83,31 @@ class LlamaNativeClient(LLMClient):
                 try:
                     data = json.loads(data_str)
                     if content := data.get("content"):
-                        yield content
+                        for piece in think_filter.feed(content):
+                            yield piece
                     if data.get("stop"):
-                        return
+                        break
                 except json.JSONDecodeError:
                     continue
+        for piece in think_filter.flush():
+            yield piece
 
     async def chat(
         self,
         messages: list[ChatMessage],
         params: GenerateParams | None = None,
     ) -> str:
-        """非流式对话：返回完整 content"""
+        """非流式对话：返回完整 content（自动过滤 <think> 标签）"""
         prompt = self._messages_to_prompt(messages)
         payload = self._build_payload(prompt, params, stream=False)
         url = f"{self.base_url}/completion"
         resp = await self._client.post(url, json=payload, headers=self._headers())
         resp.raise_for_status()
-        return resp.json().get("content", "")
+        content = resp.json().get("content", "")
+        think_filter = ThinkFilter()
+        cleaned = "".join(think_filter.feed(content))
+        cleaned += "".join(think_filter.flush())
+        return cleaned
 
     async def health_check(self) -> bool:
         """检查服务是否可用：GET /health"""

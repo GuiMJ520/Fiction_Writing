@@ -5,7 +5,7 @@ from typing import AsyncGenerator
 import httpx
 
 from app.utils import estimate_tokens
-from .base import LLMClient, ChatMessage, GenerateParams
+from .base import LLMClient, ChatMessage, GenerateParams, ThinkFilter
 
 
 class OpenAICompatClient(LLMClient):
@@ -57,9 +57,10 @@ class OpenAICompatClient(LLMClient):
         messages: list[ChatMessage],
         params: GenerateParams | None = None,
     ) -> AsyncGenerator[str, None]:
-        """流式对话：解析 SSE，yield delta.content"""
+        """流式对话：解析 SSE，yield delta.content（自动过滤 <think> 标签）"""
         payload = self._build_payload(messages, params, stream=True)
         url = f"{self.base_url}/v1/chat/completions"
+        think_filter = ThinkFilter()
         async with self._client.stream(
             "POST", url, json=payload, headers=self._headers()
         ) as resp:
@@ -69,29 +70,37 @@ class OpenAICompatClient(LLMClient):
                     continue
                 data_str = line[6:]
                 if data_str.strip() == "[DONE]":
-                    return
+                    break
                 try:
                     data = json.loads(data_str)
                     choices = data.get("choices", [])
                     if choices:
                         delta = choices[0].get("delta", {})
                         if content := delta.get("content"):
-                            yield content
+                            for piece in think_filter.feed(content):
+                                yield piece
                 except json.JSONDecodeError:
                     continue
+        for piece in think_filter.flush():
+            yield piece
 
     async def chat(
         self,
         messages: list[ChatMessage],
         params: GenerateParams | None = None,
     ) -> str:
-        """非流式对话：返回完整文本"""
+        """非流式对话：返回完整文本（自动过滤 <think> 标签）"""
         payload = self._build_payload(messages, params, stream=False)
         url = f"{self.base_url}/v1/chat/completions"
         resp = await self._client.post(url, json=payload, headers=self._headers())
         resp.raise_for_status()
         data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"]
+        # 非流式响应也过滤一次（多轮摘要生成时会调用此方法）
+        think_filter = ThinkFilter()
+        cleaned = "".join(think_filter.feed(content))
+        cleaned += "".join(think_filter.flush())
+        return cleaned
 
     async def health_check(self) -> bool:
         """检查服务是否可用：GET /health"""
